@@ -11,10 +11,10 @@
     "gridsome-source"
   ],
   "dependencies": {
-    "@graphql-tools/utils": "^8.5.3",
-    "@graphql-tools/wrap": "^8.3.2",
-    "node-fetch": "^2.6.1",
-    "graphql": "^16.0.1"
+    "apollo-link-context": "^1.0.17",
+    "apollo-link-http": "^1.5.14",
+    "graphql-tools": "^4.0.4",
+    "node-fetch": "^2.6.0"
   },
   "peerDependencies": {
     "gridsome": "0.x"
@@ -23,6 +23,6 @@
     "access": "public"
   },
   "engines": {
-    "node": "^12.13.0 || ^14.0.0 || >=16.0.0"
+    "node": ">=8"
   }
 }

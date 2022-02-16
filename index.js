@@ -1,81 +1,80 @@
+const { setContext } = require('apollo-link-context')
+const { HttpLink } = require('apollo-link-http')
 const fetch = require('node-fetch')
-const { print, GraphQLNonNull, GraphQLObjectType } = require('gridsome/graphql')
-const { introspectSchema, wrapSchema, RenameTypes } = require('@graphql-tools/wrap')
 
 const {
-  addTypes,
-  mapSchema,
-  MapperKind,
-  modifyObjectFields
-} = require('@graphql-tools/utils')
+  introspectSchema,
+  makeRemoteExecutableSchema,
+  transformSchema,
+  RenameTypes
+} = require('graphql-tools')
 
-module.exports = (api, options) => {
-  const { url, fieldName, headers, typeName = fieldName } = options
+const {
+  NamespaceUnderFieldTransform,
+  StripNonQueryTransform
+} = require(`./transforms`)
 
-  if (!url) {
-    throw new Error('Missing url option.')
+class GraphQLSource {
+  static defaultOptions () {
+    return {
+      url: undefined,
+      fieldName: undefined,
+      typeName: undefined,
+      headers: {}
+    }
   }
 
-  if (!fieldName) {
-    throw new Error('Missing fieldName option.')
-  }
+  constructor (api, options) {
+    const { url, fieldName, headers } = options
+    let typeName = options.typeName
 
-  async function remoteExecutor ({ document, variables }) {
-    const query = print(document)
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...headers },
-      body: JSON.stringify({ query, variables })
-    })
-    return res.json()
-  }
+    // Make sure all required props are passed
 
-  api.createSchema(async ({ addSchema }) => {
-    addSchema(
-      wrapSchema({
-        schema: await introspectSchema(remoteExecutor),
-        executor: remoteExecutor,
-        transforms: [
-          new StripNonQuery(),
-          new WarpQueryType(typeName, fieldName),
-          new RenameTypes(name => `${typeName}_${name}`)
-        ]
-      })
-    )
-  })
-}
-
-class WarpQueryType {
-  constructor (typeName, fieldName) {
-    this.typeName = typeName
-    this.fieldName = fieldName
-  }
-
-  transformSchema (schema) {
-    const config = schema.getQueryType().toConfig()
-    const queryType = new GraphQLObjectType({ ...config, name: this.typeName })
-    const newSchema = addTypes(schema, [queryType])
-
-    const rootFields = {
-      [this.fieldName]: {
-        type: new GraphQLNonNull(queryType),
-        resolve: () => ({})
-      }
+    if (!url) {
+      throw new Error(`Missing url option.`)
     }
 
-    return modifyObjectFields(newSchema, config.name, () => true, rootFields)[0]
+    if (!fieldName) {
+      throw new Error(`Missing fieldName option.`)
+    }
+
+    // If typeName isn't defined, default to fieldName
+
+    if (!typeName) {
+      typeName = fieldName
+    }
+
+    // Fetch schema, namespace it, and merge it into local schema
+    api.createSchema(async ({ addSchema }) => {
+      const remoteSchema = await this.getRemoteExecutableSchema(url, headers)
+      const namespacedSchema = await this.namespaceSchema(
+        remoteSchema,
+        fieldName,
+        typeName
+      )
+
+      addSchema(namespacedSchema)
+    })
+  }
+
+  async getRemoteExecutableSchema (uri, headers) {
+    const http = new HttpLink({ uri, fetch })
+    const link = setContext(() => ({ headers })).concat(http)
+    const remoteSchema = await introspectSchema(link)
+
+    return makeRemoteExecutableSchema({
+      schema: remoteSchema,
+      link
+    })
+  }
+
+  namespaceSchema (schema, fieldName, typeName) {
+    return transformSchema(schema, [
+      new StripNonQueryTransform(),
+      new RenameTypes(name => `${typeName}_${name}`),
+      new NamespaceUnderFieldTransform(typeName, fieldName)
+    ])
   }
 }
 
-class StripNonQuery {
-  transformSchema (schema) {
-    return mapSchema(schema, {
-      [MapperKind.MUTATION] () {
-        return null
-      },
-      [MapperKind.SUBSCRIPTION] () {
-        return null
-      }
-    })
-  }
-}
+module.exports = GraphQLSource

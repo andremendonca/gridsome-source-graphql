@@ -1,12 +1,11 @@
-# @gridsome/source-graphql
+# gridsome-source-graphql-with-logs
 
 > Pull a remote GraphQL schema in locally
 
 ## Install
 
-- `npm install @gridsome/source-graphql`
-- `yarn add @gridsome/source-graphql`
-- `pnpm install @gridsome/source-graphql`
+- `yarn add gridsome-source-graphql-with-logs`
+- `npm install gridsome-source-graphql-with-logs`
 
 ## Usage
 
@@ -14,7 +13,7 @@
 module.exports = {
   plugins: [
     {
-      use: '@gridsome/source-graphql',
+      use: 'gridsome-source-graphql-with-logs',
       options: {
         url: 'https://example.com/api',
         fieldName: 'puppies',
@@ -29,7 +28,7 @@ module.exports = {
 }
 ```
 
-### Options
+## Options
 
 #### url
 
@@ -45,7 +44,7 @@ The name that should be used to namespace your remote schema when it's merged in
 
 For instance, if you put "puppies" your remote schema's data will be available by querying like so:
 
-```graphql
+```
 query {
   puppies {
     helloWorld
