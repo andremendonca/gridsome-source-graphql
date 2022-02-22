@@ -1,6 +1,6 @@
 const { setContext } = require('apollo-link-context')
 const { HttpLink } = require('apollo-link-http')
-const fetch = require('node-fetch')
+const fetch = require('./fetch')
 
 const {
   introspectSchema,
